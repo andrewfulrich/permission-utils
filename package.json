@@ -1,0 +1,19 @@
+{
+  "name": "permission-utils",
+  "version": "1.0.0",
+  "description": "get Stormpath user groups for a given Stormpath Express req.user",
+  "main": "permissionUtils.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewfulrich/permission-utils.git"
+  },
+  "author": "Andrew Ulrich",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andrewfulrich/permission-utils/issues"
+  },
+  "homepage": "https://github.com/andrewfulrich/permission-utils#readme"
+}
