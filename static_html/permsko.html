@@ -1,0 +1,237 @@
+<script src="scripts/knockout.js"></script>
+<h1>Generate a whitelist/blacklist</h1>
+<ul>
+  <li>To get started, either add tables/resources using the "Add Table/Resource" button or upload a json object with keys being the resources you want to specify permissions for using the "Upload Schemas" button.</li>
+  <li>You can copy and paste the result of your work at any time from the output text area.</li>
+  <li>You can resume where you left off by uploading an existing whitelist/blacklist to the "Upload Current State" button.</li>
+</ul>
+<div id="app">
+  <label for="output">Output:</label><textarea id="output" data-bind="text: output"></textarea>
+  <label for="uploadCurrentState">Upload Current State:</label> <input type="file" id="uploadCurrentState">
+  <label for="uploadSchemas">Upload schemas:</label> <input type="file" id="uploadSchemas">
+  <div data-bind="foreach:tables">
+    <perm-table params="name: name, groups:groups"></perm-table>
+  </div>
+</div>
+<label for="addTableName">New Table Name:</label><input id="addTableName"><button id="addTableBtn">Add New Table/Resource</button>
+<div style="display:none">
+  <div id="perm-table-template">
+    <table>
+      <thead>
+      <tr>
+        <th colspan="4"><h2 data-bind="text: name"></h2></th><th></th><th><button data-bind="click: removeTable">X</button></th>
+      </tr>
+      <tr>
+        <th>Group</th>
+        <th>Create</th>
+        <th>Read</th>
+        <th>Update</th>
+        <th>Delete</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tfoot>
+      <tr>
+        <td colspan="5"></td><td><button data-bind="click: addGroup">Add Group</button></td>
+      </tr>
+      </tfoot>
+      <tbody data-bind="foreach:groups">
+        <!--ko component: {name:'perm-tr', params: {name:name,c:c,r:r,u:u,d:d}} --><!-- /ko -->
+      </tbody>
+    </table>
+  </div>
+
+  <table>
+    <tbody id="perm-tr-template">
+    <tr>
+      <td><input data-bind="textInput: name"> </td>
+      <td><input type="checkbox" data-bind="checked:c"> </td>
+      <td><input type="checkbox" data-bind="checked:r"></td>
+      <td><input type="checkbox" data-bind="checked:u"></td>
+      <td><input type="checkbox" data-bind="checked:d"></td>
+      <td><button data-bind="click: removeGroup($parentContext)">X</button></td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+<aside>
+  <pre style="font-size: 0.7em;">Permission Utils JSON file generator
+
+  Generate the whitelist/blacklist using this static html page
+
+  Author: Andrew Ulrich
+
+  MIT License
+
+  Copyright (c) 2017 Andrew F. Ulrich
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.</pre>
+</aside>
+<script>
+  /**
+   Permission Utils JSON file generator
+
+   Generate the whitelist/blacklist using this static html page
+
+   Author: Andrew Ulrich
+
+   MIT License
+
+   Copyright (c) 2017 Andrew F. Ulrich
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+   */
+  class ViewModel {
+    constructor() {
+      this.tables=ko.observableArray()
+      this.output=ko.computed(()=>{
+        let tableArray=ko.toJS(this.tables)
+        function makeNameless(obj) {
+          let retObj=Object.assign({},obj)
+          delete retObj.name
+          return retObj
+        }
+        function convertGroups(t) {
+          let retObj=Object.assign({},t)
+          return retObj.groups.reduce((accum,curr)=>Object.assign(accum,{[curr.name]:makeNameless(curr)}),{})
+        }
+        return JSON.stringify(
+          tableArray.reduce((accum,curr)=>
+            Object.assign(accum,{[curr.name]:convertGroups(makeNameless(curr))}),{})
+          ,null,2)
+      })
+    }
+  }
+
+  const vm=new ViewModel()
+
+  class GroupVm {
+    constructor({name,c,r,u,d}) { //note the destructuring
+      this.name=name
+      this.c=c
+      this.r=r
+      this.u=u
+      this.d=d
+    }
+    removeGroup(parentContext) {
+      return ()=>vm.tables().find(table=>table.name===parentContext.$parent.name).groups.remove((group)=>group.name==this.name)
+    }
+  }
+
+  ko.components.register('perm-tr',{
+    viewModel: GroupVm,
+    template: document.getElementById('perm-tr-template').innerHTML
+  })
+
+  class TableVm {
+    constructor({name, groups}) { //note the destructuring
+      this.groups=groups
+      this.name=name
+    }
+    addGroup() {
+      this.groups.push(makeNewGroupObject())
+    }
+    removeTable() {
+      vm.tables.remove((table)=>table.name==this.name)
+    }
+  }
+  ko.components.register('perm-table',{
+    viewModel: TableVm,
+    template: document.getElementById('perm-table-template').innerHTML
+  })
+
+  ko.applyBindings(vm,document.getElementById('app'))
+
+  function makeNewGroupObject(name='',c=false,r=false,u=false,d=false) {
+    return {
+      name:ko.observable(name),
+      c:ko.observable(c),
+      r:ko.observable(r),
+      u:ko.observable(u),
+      d:ko.observable(d),
+    }
+  }
+
+  function makeNewTableObject(table) {
+    return {
+      name:table,
+      groups:ko.observableArray()
+    }
+  }
+
+  document.getElementById("uploadSchemas").addEventListener("change",readUploadedSchemas);
+  document.getElementById("uploadCurrentState").addEventListener("change",readUploadedState);
+  document.getElementById("addTableBtn").addEventListener("click",addTable);
+
+  function readUploadedJson(e,callback) {
+    const reader = new FileReader()
+    reader.onload = function(loadEvent) {
+      callback(JSON.parse(reader.result))
+
+    };
+    if(e.target.files.length == 1) {
+      reader.readAsText(e.target.files[0]);
+    }
+  }
+
+  function readUploadedState(e) {
+    readUploadedJson(e,theState=>{
+      vm.tables(Object.keys(theState).map(tableName=>({
+        name:tableName,
+        groups:ko.observableArray(Object.keys(theState[tableName]).map(groupName=>{
+          let groupObj=theState[tableName][groupName]
+          return makeNewGroupObject(groupName,groupObj.c,groupObj.r,groupObj.u,groupObj.d)
+        }))
+      })))
+    })
+  }
+
+  function readUploadedSchemas(e) {
+    readUploadedJson(e,theSchema=>{
+      let currTables=vm.tables().map((table)=>table.name)
+      let allTables=Object.keys(theSchema)
+        .filter(table=>!currTables.includes(table))
+        .concat(currTables)
+      console.log('Loaded tables. Tables are now: ',allTables)
+      vm.tables(allTables.map(table=>makeNewTableObject(table)))
+    })}
+  function addTable(e) {
+    const newTableName=document.getElementById('addTableName').value
+    if(vm.tables().find(table=>table.name==newTableName)) alert('you have already added that resource')
+    else if(newTableName.length === 0) alert('you must specify a name for your resource before you can add it')
+    else
+      vm.tables.push(makeNewTableObject(newTableName))
+  }
+</script>

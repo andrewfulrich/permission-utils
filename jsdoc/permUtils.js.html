@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: permUtils.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: permUtils.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ Permission Utils
+
+ A set of useful functions for managing group-based permissions.
+
+ Author: Andrew Ulrich
+
+ MIT License
+
+ Copyright (c) 2017 Andrew F. Ulrich
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+ */
+
+/**
+ * Get the permissions of a given user based on the groups he/she belongs to
+ * @param groups an array of the groups the user belongs to
+ * @param permSpecs a json object specifying which permissions to grant for which groups on which resources (see test files for examples)
+ * @param isBlackList whether or not the permSpecs are a blacklist, defaults to false (a whitelist)
+ * @returns {*} an object with tables for keys and CRUD permissions for values (e.g. {c:false,r:true,u:false,d:false} == read only)
+ */
+function getGroupPerms(groups,permSpecs,isBlackList=false) {
+  return Object.keys(permSpecs)
+    .reduce((accum,table)=>Object.assign(accum,{[table]:
+      {
+        c:hasPerm(table,groups,'c',permSpecs,isBlackList),
+        r:hasPerm(table,groups,'r',permSpecs,isBlackList),
+        u:hasPerm(table,groups,'u',permSpecs,isBlackList),
+        d:hasPerm(table,groups,'d',permSpecs,isBlackList)
+      }}),{})
+}
+
+/**
+ * check to see if the groups that the user is in grants him/her permission to do the given action on the given resource
+ * @param table the table/resource upon which the action would be performed
+ * @param groups and array of group names
+ * @param action String can be 'c', 'r', 'u', or 'd'
+ * @param permSpecs the permission specifications
+ * @returns {boolean}
+ */
+function hasPerm(table,groups,action,permSpecs,isBlackList=false) {
+  if(!permSpecs[table]) return isBlackList; //if there are no perms specified for that table, then give no perms for it if whitelist or all perms if blacklist
+  let relevantGroups=Object.keys(permSpecs[table]).filter(group=>groups.includes(group))
+  if(relevantGroups.length == 0) return isBlackList; //user is not in any group that specified permissions, so give no perms if whitelist, all if black
+  if(isBlackList) {
+    return !relevantGroups.some(group=>!permSpecs[table][group][action])
+  } else {
+    return relevantGroups.some(group=>permSpecs[table][group][action])
+  }
+}
+
+/**
+ * invert the given permissions
+ * @param userPerms
+ */
+function invertResults(userPerms) {
+  return Object.keys(userPerms).reduce((tables,table)=>
+    Object.assign(tables,{[table]:Object.keys(userPerms[table]).reduce((actions,action)=>
+      Object.assign(actions,{[action]:!userPerms[table][action]})
+    ,{})})
+  ,{})
+}
+
+/**
+ * "private" function used by the functions that combine results
+ * "private" in the sense that it's not a function that is used outside of this file
+ * @param tableList1
+ * @param tableList2
+ * @param compareFunc
+ * @returns {*}
+ */
+function combinePermissionSets(tableList1,tableList2,compareFunc) {
+  const allPerms=Object.assign({},tableList1,tableList2)
+  return Object.keys(allPerms).reduce((tables,table)=>
+      Object.assign(tables,{[table]:Object.keys(allPerms[table]).reduce((actions,action)=>
+          Object.assign(actions,{[action]:compareFunc(table,action)})
+        ,{})})
+    ,{})
+}
+
+/**
+ * Combine two sets of permissions generated from whitelists
+ * Permissions granted from either trump permissions revoked in the other
+ * If one whitelist has tables the other doesn't, its permissions are obeyed for those tables
+ * @param w1
+ * @param w2
+ */
+function combineWhiteResults(w1,w2) {
+  function obeyIfExistWithGreedyGrant(table,action) {
+    return Boolean((w1[table] &amp;&amp; w1[table][action]) || (w2[table] &amp;&amp; w2[table][action]))
+  }
+  return combinePermissionSets(w1,w2,obeyIfExistWithGreedyGrant)
+}
+
+/**
+ * Combine two sets of permissions generated from a whitelist and blacklist
+ * Permissions revoked from either trump permissions granted in the other
+ * if blacklist has tables whitelist doesn't, permissions on those tables are revoked
+ * if whitelist has tables blacklist doesn't, permissions on those tables obey whitelist permissions
+ * @param white
+ * @param black
+ * @returns {*}
+ */
+function combineWhiteAndBlackResults(white,black) {
+  function obeyIfWhiteExistWithGreedyRevoke(table,action) {
+    return (!white[table] || (black[table] &amp;&amp; !black[table][action])) ? false : (white[table] &amp;&amp; white[table][action])
+  }
+  return combinePermissionSets(white,black,obeyIfWhiteExistWithGreedyRevoke)
+}
+
+/**
+ * Combine two sets of permissions generated from blacklists
+ * Permissions revoked from either trump permissions granted in the other
+ * If one blacklist has tables the other doesn't, its permissions are obeyed for those tables
+ * @param b1
+ * @param b2
+ * @returns {*}
+ */
+function combineBlackResults(b1,b2) {
+  const allPerms=Object.assign({},b1,b2)
+
+  function obeyIfExistWithGreedyRevoke(table,action) {
+    return ((b1[table] &amp;&amp; !b1[table][action]) ||  (b2[table] &amp;&amp; !b2[table][action])) ? false : (b1[table] &amp;&amp; b1[table][action]) ||  (b2[table] &amp;&amp; b2[table][action])
+  }
+  return Object.keys(allPerms).reduce((tables,table)=>
+      Object.assign(tables,{[table]:Object.keys(allPerms[table]).reduce((actions,action)=>
+          Object.assign(actions,{[action]:obeyIfExistWithGreedyRevoke(table,action)})
+        ,{})})
+    ,{})
+}
+
+module.exports={
+  getGroupPerms,
+  hasPerm,
+  invertResults,
+  combineWhiteResults,
+  combineWhiteAndBlackResults,
+  combineBlackResults
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#combineBlackResults">combineBlackResults</a></li><li><a href="global.html#combinePermissionSets">combinePermissionSets</a></li><li><a href="global.html#combineWhiteAndBlackResults">combineWhiteAndBlackResults</a></li><li><a href="global.html#combineWhiteResults">combineWhiteResults</a></li><li><a href="global.html#getGroupPerms">getGroupPerms</a></li><li><a href="global.html#hasPerm">hasPerm</a></li><li><a href="global.html#invertResults">invertResults</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Mon Nov 27 2017 00:00:05 GMT-0600 (Central Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
