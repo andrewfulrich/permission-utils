@@ -5,7 +5,7 @@
   "main": "permUtils.js",
   "scripts": {
     "test": "tape tests/permUtilsTest.js | tap-spec",
-    "jsdoc": "jsdoc permUtils.js -d ./jsdoc/"
+    "jsdoc": "jsdoc permUtils.js -d ./docs/"
   },
   "repository": {
     "type": "git",
