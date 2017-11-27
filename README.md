@@ -34,6 +34,19 @@ If this were specified as a blacklist, it would grant:
  * read and update to a user who belonged to group2
  * all permissions to a user who belonged to neither
 
-To use, pass the required info into getGroupPerms to get the user's permissions.
+## To Use
 
-For API documentation, see https://andrewfulrich.github.io/permission-utils/
+To use, pass the required info into getGroupPerms to get the user's permissions.
+For example, for a user who belongs to both group1 and group2 for the above whitelist, the output will look like so:
+```
+{
+    "table1":{ "c":true,"r":true","u":true,"d":false },
+    "table2":{ "c":false,"r":false","u":false,"d":false }
+}
+```
+
+You can then use those results to allow/disallow the user to perform the actions specified as you see fit (these utils don't help you with that part).
+
+If you also have a blacklist that you want to use to determine permissions, run the blacklist through that function too, then combine the results using the combineWhiteAndBlackResults function.
+
+For detailed API documentation, see https://andrewfulrich.github.io/permission-utils/

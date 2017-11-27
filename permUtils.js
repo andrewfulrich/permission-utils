@@ -67,7 +67,7 @@ function hasPerm(table,groups,action,permSpecs,isBlackList=false) {
 
 /**
  * invert the given permissions
- * @param userPerms
+ * @param userPerms this is the output from getGroupPerms
  */
 function invertResults(userPerms) {
   return Object.keys(userPerms).reduce((tables,table)=>
@@ -80,8 +80,8 @@ function invertResults(userPerms) {
 /**
  * "private" function used by the functions that combine results
  * "private" in the sense that it's not a function that is used outside of this file
- * @param tableList1
- * @param tableList2
+ * @param tableList1 the output from getGroupPerms
+ * @param tableList2 the output from getGroupPerms
  * @param compareFunc
  * @returns {*}
  */
@@ -98,8 +98,8 @@ function combinePermissionSets(tableList1,tableList2,compareFunc) {
  * Combine two sets of permissions generated from whitelists
  * Permissions granted from either trump permissions revoked in the other
  * If one whitelist has tables the other doesn't, its permissions are obeyed for those tables
- * @param w1
- * @param w2
+ * @param w1 the output from getGroupPerms for the first whitelist
+ * @param w2 the output from getGroupPerms for the second whitelist
  */
 function combineWhiteResults(w1,w2) {
   function obeyIfExistWithGreedyGrant(table,action) {
@@ -113,8 +113,8 @@ function combineWhiteResults(w1,w2) {
  * Permissions revoked from either trump permissions granted in the other
  * if blacklist has tables whitelist doesn't, permissions on those tables are revoked
  * if whitelist has tables blacklist doesn't, permissions on those tables obey whitelist permissions
- * @param white
- * @param black
+ * @param white the output from getGroupPerms for the whitelist
+ * @param black the output from getGroupPerms for the blacklist
  * @returns {*}
  */
 function combineWhiteAndBlackResults(white,black) {
@@ -128,8 +128,8 @@ function combineWhiteAndBlackResults(white,black) {
  * Combine two sets of permissions generated from blacklists
  * Permissions revoked from either trump permissions granted in the other
  * If one blacklist has tables the other doesn't, its permissions are obeyed for those tables
- * @param b1
- * @param b2
+ * @param b1 the output from getGroupPerms for the first blacklist
+ * @param b2 the output from getGroupPerms for the second blacklist
  * @returns {*}
  */
 function combineBlackResults(b1,b2) {
