@@ -7,7 +7,7 @@ A set of useful functions for managing group-based permissions.
 * Can handle whitelisted group permissions or blacklisted.
 * Lightweight
 * Has zero package dependencies
-* Includes a static html page to help you build your whitelist/blacklist (see ./static_html/permsko.html in the repo)
+* Includes a static html page to help you build your whitelist/blacklist (see https://andrewfulrich.github.io/permission-utils/permsko.html)
 * Runs off json files to specify which "tables" (really could be any resource/collection if you are using nosql) give/revoke which CRUD permissions to which groups.
 
 These json files look like this:
@@ -33,3 +33,5 @@ If this were specified as a blacklist, it would grant:
  * create and read to a user who belonged to group1
  * read and update to a user who belonged to group2
  * all permissions to a user who belonged to neither
+
+For API documentation, see https://andrewfulrich.github.io/permission-utils/

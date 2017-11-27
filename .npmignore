@@ -60,5 +60,4 @@ typings/
 .env
 
 .idea
-static_html
 docs
