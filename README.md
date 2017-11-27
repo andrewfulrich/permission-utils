@@ -34,4 +34,6 @@ If this were specified as a blacklist, it would grant:
  * read and update to a user who belonged to group2
  * all permissions to a user who belonged to neither
 
+To use, pass the required info into getGroupPerms to get the user's permissions.
+
 For API documentation, see https://andrewfulrich.github.io/permission-utils/
